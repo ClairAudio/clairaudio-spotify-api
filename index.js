@@ -46,7 +46,30 @@ app.get("/search", async (req, res) => {
     }
   );
 
-  res.json(response.data.tracks.items);
+  const tracks = response.data.tracks.items;
+
+  // Fetch genres for each track's first artist
+  const enrichedTracks = await Promise.all(
+    tracks.map(async (track) => {
+      const artistId = track.artists[0]?.id;
+      try {
+        const artistRes = await axios.get(`https://api.spotify.com/v1/artists/${artistId}`, {
+          headers: { Authorization: `Bearer ${accessToken}` },
+        });
+        return {
+          ...track,
+          genre: artistRes.data.genres[0] || "Unknown",
+        };
+      } catch (err) {
+        return {
+          ...track,
+          genre: "Unknown",
+        };
+      }
+    })
+  );
+
+  res.json(enrichedTracks);
 });
 
 app.listen(3000, () => {
