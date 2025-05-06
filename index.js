@@ -48,24 +48,43 @@ app.get("/search", async (req, res) => {
 
   const tracks = response.data.tracks.items;
 
-  // Fetch genres for each track's first artist
   const enrichedTracks = await Promise.all(
     tracks.map(async (track) => {
       const artistId = track.artists[0]?.id;
+      let genre = "Unknown";
+      let audioFeatures = null;
+
       try {
-        const artistRes = await axios.get(`https://api.spotify.com/v1/artists/${artistId}`, {
-          headers: { Authorization: `Bearer ${accessToken}` },
-        });
-        return {
-          ...track,
-          genre: artistRes.data.genres[0] || "Unknown",
-        };
+        // Get genre from artist
+        const artistRes = await axios.get(
+          `https://api.spotify.com/v1/artists/${artistId}`,
+          {
+            headers: { Authorization: `Bearer ${accessToken}` },
+          }
+        );
+        genre = artistRes.data.genres[0] || "Unknown";
       } catch (err) {
-        return {
-          ...track,
-          genre: "Unknown",
-        };
+        genre = "Unknown";
       }
+
+      try {
+        // Get audio features for the track
+        const audioRes = await axios.get(
+          `https://api.spotify.com/v1/audio-features/${track.id}`,
+          {
+            headers: { Authorization: `Bearer ${accessToken}` },
+          }
+        );
+        audioFeatures = audioRes.data;
+      } catch (err) {
+        audioFeatures = null;
+      }
+
+      return {
+        ...track,
+        genre,
+        audioFeatures,
+      };
     })
   );
 
@@ -75,3 +94,4 @@ app.get("/search", async (req, res) => {
 app.listen(3000, () => {
   console.log("Server running on port 3000");
 });
+
