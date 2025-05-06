@@ -85,16 +85,21 @@ app.get("/audio-features/:trackId", async (req, res) => {
   const { trackId } = req.params;
   const accessToken = await getAccessToken();
 
+  console.log("Track ID:", trackId);
+  console.log("Access token:", accessToken); // <-- log the token
+
   try {
     const response = await axios.get(
       `https://api.spotify.com/v1/audio-features/${trackId}`,
       {
-        headers: { Authorization: `Bearer ${accessToken}` },
+        headers: {
+          Authorization: `Bearer ${accessToken}`, // make sure this line runs
+        },
       }
     );
     res.json(response.data);
   } catch (err) {
-    console.error("Error fetching audio features:", err.message);
+    console.error("Spotify error:", err.response?.data || err.message);
     res.status(500).json({ error: "Failed to fetch audio features" });
   }
 });
