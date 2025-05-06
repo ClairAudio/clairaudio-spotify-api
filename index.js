@@ -48,14 +48,13 @@ app.get("/search", async (req, res) => {
 
   const tracks = response.data.tracks.items;
 
+  // Only fetch genre (not audio features)
   const enrichedTracks = await Promise.all(
     tracks.map(async (track) => {
       const artistId = track.artists[0]?.id;
       let genre = "Unknown";
-      let audioFeatures = null;
 
       try {
-        // Get genre from artist
         const artistRes = await axios.get(
           `https://api.spotify.com/v1/artists/${artistId}`,
           {
@@ -64,31 +63,39 @@ app.get("/search", async (req, res) => {
         );
         genre = artistRes.data.genres[0] || "Unknown";
       } catch (err) {
+        console.error("Error fetching genre:", err.response?.data || err.message);
         genre = "Unknown";
-      }
-
-      try {
-        // Get audio features for the track
-        const audioRes = await axios.get(
-          `https://api.spotify.com/v1/audio-features/${track.id}`,
-          {
-            headers: { Authorization: `Bearer ${accessToken}` },
-          }
-        );
-        audioFeatures = audioRes.data;
-      } catch (err) {
-        audioFeatures = null;
       }
 
       return {
         ...track,
         genre,
-        audioFeatures,
+        audioFeatures: null  // fetched later by /audio-features/:id
       };
     })
   );
 
   res.json(enrichedTracks);
+});
+
+app.get("/audio-features/:trackId", async (req, res) => {
+  const trackId = req.params.trackId;
+  const accessToken = await getAccessToken();
+
+  try {
+    const response = await axios.get(
+      `https://api.spotify.com/v1/audio-features/${trackId}`,
+      {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      }
+    );
+    res.json(response.data);
+  } catch (err) {
+    console.error("Error fetching audio features:", err.response?.data || err.message);
+    res.status(500).json({ error: "Failed to fetch audio features" });
+  }
 });
 
 app.listen(3000, () => {
