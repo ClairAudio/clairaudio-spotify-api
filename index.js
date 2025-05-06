@@ -69,7 +69,12 @@ app.get("/audio-features/:trackId", async (req, res) => {
     );
     res.json(response.data);
   } catch (err) {
-    console.error("Spotify error:", err.response?.data || err.message);
+    console.error("Spotify error:", {
+  status: err?.response?.status,
+  statusText: err?.response?.statusText,
+  headers: err?.response?.headers,
+  data: err?.response?.data,
+});
     res.status(500).json({ error: "Failed to fetch audio features" });
   }
 });
