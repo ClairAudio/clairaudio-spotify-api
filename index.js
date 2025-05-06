@@ -33,6 +33,7 @@ async function getAccessToken() {
   return token;
 }
 
+// Route: Search for tracks (genre only)
 app.get("/search", async (req, res) => {
   const q = req.query.q;
   const accessToken = await getAccessToken();
@@ -48,7 +49,7 @@ app.get("/search", async (req, res) => {
 
   const tracks = response.data.tracks.items;
 
-  // Only fetch genre (not audio features)
+  // Fetch genres only (no audio features here)
   const enrichedTracks = await Promise.all(
     tracks.map(async (track) => {
       const artistId = track.artists[0]?.id;
@@ -63,14 +64,12 @@ app.get("/search", async (req, res) => {
         );
         genre = artistRes.data.genres[0] || "Unknown";
       } catch (err) {
-        console.error("Error fetching genre:", err.response?.data || err.message);
         genre = "Unknown";
       }
 
       return {
         ...track,
         genre,
-        audioFeatures: null  // fetched later by /audio-features/:id
       };
     })
   );
@@ -78,9 +77,10 @@ app.get("/search", async (req, res) => {
   res.json(enrichedTracks);
 });
 
+// Route: Fetch audio features for 1 track (used after user selects)
 app.get("/audio-features/:trackId", async (req, res) => {
-  const trackId = req.params.trackId;
   const accessToken = await getAccessToken();
+  const { trackId } = req.params;
 
   try {
     const response = await axios.get(
@@ -93,7 +93,7 @@ app.get("/audio-features/:trackId", async (req, res) => {
     );
     res.json(response.data);
   } catch (err) {
-    console.error("Error fetching audio features:", err.response?.data || err.message);
+    console.error("Error fetching audio features:", err.message);
     res.status(500).json({ error: "Failed to fetch audio features" });
   }
 });
