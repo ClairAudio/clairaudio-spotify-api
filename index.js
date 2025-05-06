@@ -33,7 +33,7 @@ async function getAccessToken() {
   return token;
 }
 
-// Route: Search tracks and get basic data + genre
+// Route: Search tracks (no genre, no audio features)
 app.get("/search", async (req, res) => {
   const q = req.query.q;
   const accessToken = await getAccessToken();
@@ -46,54 +46,24 @@ app.get("/search", async (req, res) => {
       }
     );
 
-    const tracks = response.data.tracks.items;
-
-    // Add genre from the first artist
-    const enrichedTracks = await Promise.all(
-      tracks.map(async (track) => {
-        const artistId = track.artists[0]?.id;
-        let genre = "Unknown";
-
-        try {
-          const artistRes = await axios.get(
-            `https://api.spotify.com/v1/artists/${artistId}`,
-            {
-              headers: { Authorization: `Bearer ${accessToken}` },
-            }
-          );
-          genre = artistRes.data.genres[0] || "Unknown";
-        } catch (err) {
-          console.warn("Error fetching genre for artist:", err.message);
-        }
-
-        return {
-          ...track,
-          genre,
-        };
-      })
-    );
-
-    res.json(enrichedTracks);
+    res.json(response.data.tracks.items); // just return raw results
   } catch (err) {
     console.error("Search route failed:", err.message);
     res.status(500).json({ error: "Search failed" });
   }
 });
 
-// Route: Fetch audio features after user selects a track
+// Route: Fetch audio features for selected track
 app.get("/audio-features/:trackId", async (req, res) => {
   const { trackId } = req.params;
   const accessToken = await getAccessToken();
-
-  console.log("Track ID:", trackId);
-  console.log("Access token:", accessToken); // <-- log the token
 
   try {
     const response = await axios.get(
       `https://api.spotify.com/v1/audio-features/${trackId}`,
       {
         headers: {
-          Authorization: `Bearer ${accessToken}`, // make sure this line runs
+          Authorization: `Bearer ${accessToken}`,
         },
       }
     );
