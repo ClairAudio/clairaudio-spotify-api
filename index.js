@@ -33,62 +33,63 @@ async function getAccessToken() {
   return token;
 }
 
-// Route: Search for tracks (genre only)
+// Route: Search tracks and get basic data + genre
 app.get("/search", async (req, res) => {
   const q = req.query.q;
   const accessToken = await getAccessToken();
 
-  const response = await axios.get(
-    `https://api.spotify.com/v1/search?q=${encodeURIComponent(q)}&type=track&limit=50`,
-    {
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-      },
-    }
-  );
-
-  const tracks = response.data.tracks.items;
-
-  // Fetch genres only (no audio features here)
-  const enrichedTracks = await Promise.all(
-    tracks.map(async (track) => {
-      const artistId = track.artists[0]?.id;
-      let genre = "Unknown";
-
-      try {
-        const artistRes = await axios.get(
-          `https://api.spotify.com/v1/artists/${artistId}`,
-          {
-            headers: { Authorization: `Bearer ${accessToken}` },
-          }
-        );
-        genre = artistRes.data.genres[0] || "Unknown";
-      } catch (err) {
-        genre = "Unknown";
+  try {
+    const response = await axios.get(
+      `https://api.spotify.com/v1/search?q=${encodeURIComponent(q)}&type=track&limit=50`,
+      {
+        headers: { Authorization: `Bearer ${accessToken}` },
       }
+    );
 
-      return {
-        ...track,
-        genre,
-      };
-    })
-  );
+    const tracks = response.data.tracks.items;
 
-  res.json(enrichedTracks);
+    // Add genre from the first artist
+    const enrichedTracks = await Promise.all(
+      tracks.map(async (track) => {
+        const artistId = track.artists[0]?.id;
+        let genre = "Unknown";
+
+        try {
+          const artistRes = await axios.get(
+            `https://api.spotify.com/v1/artists/${artistId}`,
+            {
+              headers: { Authorization: `Bearer ${accessToken}` },
+            }
+          );
+          genre = artistRes.data.genres[0] || "Unknown";
+        } catch (err) {
+          console.warn("Error fetching genre for artist:", err.message);
+        }
+
+        return {
+          ...track,
+          genre,
+        };
+      })
+    );
+
+    res.json(enrichedTracks);
+  } catch (err) {
+    console.error("Search route failed:", err.message);
+    res.status(500).json({ error: "Search failed" });
+  }
 });
 
-// Route: Fetch audio features for 1 track (used after user selects)
+// Route: Fetch audio features after user selects a track
 app.get("/audio-features/:trackId", async (req, res) => {
-  const accessToken = await getAccessToken();
   const { trackId } = req.params;
+  const accessToken = await getAccessToken();
 
   try {
     const response = await axios.get(
       `https://api.spotify.com/v1/audio-features/${trackId}`,
       {
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-        },
+        headers: { Authorization: `Bearer ${accessToken}` },
       }
     );
     res.json(response.data);
@@ -99,6 +100,6 @@ app.get("/audio-features/:trackId", async (req, res) => {
 });
 
 app.listen(3000, () => {
-  console.log("Server running on port 3000");
+  console.log("✅ Server running on port 3000");
 });
 
