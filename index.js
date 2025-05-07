@@ -53,13 +53,13 @@ app.get("/search", async (req, res) => {
   }
 });
 
-// Route: Get genre for selected artist (called after user picks a song)
-app.get("/track-genre/:artistId", async (req, res) => {
+// ✅ Route: Get genre for a specific artist
+app.get("/genre/:artistId", async (req, res) => {
   const { artistId } = req.params;
   const accessToken = await getAccessToken();
 
   try {
-    const artistRes = await axios.get(
+    const response = await axios.get(
       `https://api.spotify.com/v1/artists/${artistId}`,
       {
         headers: {
@@ -68,10 +68,11 @@ app.get("/track-genre/:artistId", async (req, res) => {
       }
     );
 
-    const genres = artistRes.data.genres;
-    res.json({ genre: genres[0] || "Unknown" });
+    const genres = response.data.genres;
+    const genre = genres.length > 0 ? genres[0] : "Unknown";
+    res.json({ genre });
   } catch (err) {
-    console.error("Error fetching genre:", err.message);
+    console.error("Failed to fetch artist genre:", err.message);
     res.status(500).json({ error: "Failed to fetch genre" });
   }
 });
@@ -79,4 +80,3 @@ app.get("/track-genre/:artistId", async (req, res) => {
 app.listen(3000, () => {
   console.log("✅ Server running on port 3000");
 });
-
