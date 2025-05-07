@@ -33,7 +33,7 @@ async function getAccessToken() {
   return token;
 }
 
-// Route: Search tracks (no genre, no audio features)
+// Route: Search tracks (basic results only)
 app.get("/search", async (req, res) => {
   const q = req.query.q;
   const accessToken = await getAccessToken();
@@ -46,36 +46,33 @@ app.get("/search", async (req, res) => {
       }
     );
 
-    res.json(response.data.tracks.items); // just return raw results
+    res.json(response.data.tracks.items);
   } catch (err) {
     console.error("Search route failed:", err.message);
     res.status(500).json({ error: "Search failed" });
   }
 });
 
-// Route: Fetch audio features for selected track
-app.get("/audio-features/:trackId", async (req, res) => {
-  const { trackId } = req.params;
+// Route: Get genre for selected artist (called after user picks a song)
+app.get("/track-genre/:artistId", async (req, res) => {
+  const { artistId } = req.params;
   const accessToken = await getAccessToken();
 
   try {
-    const response = await axios.get(
-      `https://api.spotify.com/v1/audio-features/${trackId}`,
+    const artistRes = await axios.get(
+      `https://api.spotify.com/v1/artists/${artistId}`,
       {
         headers: {
           Authorization: `Bearer ${accessToken}`,
         },
       }
     );
-    res.json(response.data);
+
+    const genres = artistRes.data.genres;
+    res.json({ genre: genres[0] || "Unknown" });
   } catch (err) {
-    console.error("Spotify error:", {
-  status: err?.response?.status,
-  statusText: err?.response?.statusText,
-  headers: err?.response?.headers,
-  data: err?.response?.data,
-});
-    res.status(500).json({ error: "Failed to fetch audio features" });
+    console.error("Error fetching genre:", err.message);
+    res.status(500).json({ error: "Failed to fetch genre" });
   }
 });
 
