@@ -75,6 +75,41 @@ app.get("/genre/:artistId", async (req, res) => {
   }
 });
 
+const cheerio = require("cheerio");
+
+// ✅ Route: Get mood features from Musicstax (server-side scrape)
+app.get("/musicstax/:slug/:trackId", async (req, res) => {
+  const { slug, trackId } = req.params;
+
+  try {
+    const response = await axios.get(`https://musicstax.com/track/${slug}/${trackId}`, {
+      headers: { "User-Agent": "Mozilla/5.0" } // act like a browser
+    });
+
+    const $ = cheerio.load(response.data);
+
+    // Helper to find the next <div> after a label
+    const getVal = (label) => {
+      const el = $(`div:contains("${label}")`).next("div").text().trim();
+      return el || null;
+    };
+
+    const features = {
+      energy: getVal("Energy"),
+      danceability: getVal("Danceability"),
+      happiness: getVal("Valence"),
+      acousticness: getVal("Acousticness"),
+      instrumentalness: getVal("Instrumentalness"),
+      speechiness: getVal("Speechiness"),
+    };
+
+    res.json(features);
+  } catch (err) {
+    console.error("❌ Failed to fetch from Musicstax:", err.message);
+    res.status(500).json({ error: "Failed to fetch Musicstax data" });
+  }
+});
+
 app.listen(3000, () => {
   console.log("✅ Server running on port 3000");
 });
