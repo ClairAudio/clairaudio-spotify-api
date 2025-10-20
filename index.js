@@ -75,45 +75,29 @@ app.get("/genre/:artistId", async (req, res) => {
   }
 });
 
-const cheerio = require("cheerio");
 
-// ✅ Improved: Musicstax scraping route
-app.get("/musicstax/:slug/:trackId", async (req, res) => {
-  const { slug, trackId } = req.params;
+// ✅ Route: Get audio features using RapidAPI (Music Metrics)
+app.get("/audio-features/:trackId", async (req, res) => {
+  const { trackId } = req.params;
 
   try {
-    const url = `https://musicstax.com/track/${slug}/${trackId}`;
-    const response = await axios.get(url, {
-      headers: { "User-Agent": "Mozilla/5.0" }
-    });
+    const response = await axios.get(
+      "https://spotify-audio-features-track-analysis.p.rapidapi.com/v1/audio-features",
+      {
+        params: { id: trackId },
+        headers: {
+          "x-rapidapi-key": process.env.RAPIDAPI_KEY,
+          "x-rapidapi-host": "spotify-audio-features-track-analysis.p.rapidapi.com",
+        },
+      }
+    );
 
-    const $ = cheerio.load(response.data);
-
-    // Try multiple selector strategies
-    const features = {};
-    $("div").each((_, el) => {
-      const text = $(el).text().trim();
-      if (text.includes("Energy")) features.energy = $(el).next().text().trim();
-      if (text.includes("Danceability")) features.danceability = $(el).next().text().trim();
-      if (text.includes("Valence")) features.happiness = $(el).next().text().trim();
-      if (text.includes("Acousticness")) features.acousticness = $(el).next().text().trim();
-      if (text.includes("Instrumentalness")) features.instrumentalness = $(el).next().text().trim();
-      if (text.includes("Speechiness")) features.speechiness = $(el).next().text().trim();
-    });
-
-    // Validate results
-    if (Object.keys(features).length === 0) {
-      console.error("⚠️ No features found on Musicstax page — layout likely changed");
-      return res.status(404).json({ error: "No features found — layout may have changed" });
-    }
-
-    res.json(features);
+    res.json(response.data);
   } catch (err) {
-    console.error("❌ Failed to fetch from Musicstax:", err.message);
-    res.status(500).json({ error: "Failed to fetch Musicstax data" });
+    console.error("❌ RapidAPI fetch failed:", err.message);
+    res.status(500).json({ error: "Failed to fetch from RapidAPI" });
   }
 });
-
 
 app.listen(3000, () => {
   console.log("✅ Server running on port 3000");
