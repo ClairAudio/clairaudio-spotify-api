@@ -1,6 +1,9 @@
 const express = require("express");
 const axios = require("axios");
 const cors = require("cors");
+require("dotenv").config();
+console.log("✅ SOUNDSTAT_API_KEY:", process.env.SOUNDSTAT_API_KEY);
+
 
 const app = express();
 app.use(cors());
@@ -75,30 +78,52 @@ app.get("/genre/:artistId", async (req, res) => {
   }
 });
 
-
-// ✅ Route: Get audio features using RapidAPI (Music Metrics)
+// ✅ Route: Get audio features from SoundStat
 app.get("/audio-features/:trackId", async (req, res) => {
   const { trackId } = req.params;
 
   try {
-    const response = await axios.get(
-      "https://spotify-audio-features-track-analysis.p.rapidapi.com/v1/audio-features",
+    const soundstatRes = await axios.get(
+      `https://soundstat.info/api/v1/track/${trackId}`,
       {
-        params: { id: trackId },
         headers: {
-          "x-rapidapi-key": process.env.RAPIDAPI_KEY,
-          "x-rapidapi-host": "spotify-audio-features-track-analysis.p.rapidapi.com",
-        },
+          "X-API-Key": process.env.SOUNDSTAT_API_KEY
+        }
       }
     );
 
-    res.json(response.data);
+    // Log full HTTP info
+    console.log("🔎 SoundStat status:", soundstatRes.status);
+    console.log("🔎 SoundStat headers:", soundstatRes.headers);
+    console.log("🔎 SoundStat body:", soundstatRes.data);
+
+    // Check for empty response
+    if (!soundstatRes.data || Object.keys(soundstatRes.data).length === 0) {
+      return res.status(204).json({ error: "No data returned. Try again later." });
+    }
+
+    // Return audio_analysis if found
+    if (!soundstatRes.data.features) {
+  return res.status(202).json({ message: "Analysis still in progress or unavailable." });
+}
+
+res.json({
+  id: soundstatRes.data.id,
+  name: soundstatRes.data.name,
+  artist: soundstatRes.data.artists[0],
+  genre: soundstatRes.data.genre,
+  popularity: soundstatRes.data.popularity,
+  duration_ms: soundstatRes.data.duration_ms,
+  features: soundstatRes.data.features
+});
+
   } catch (err) {
-    console.error("❌ RapidAPI fetch failed:", err.message);
-    res.status(500).json({ error: "Failed to fetch from RapidAPI" });
+    console.error("❌ SoundStat fetch failed:", err?.response?.data || err.message);
+    res.status(500).json({ error: "Failed to fetch from SoundStat" });
   }
 });
 
 app.listen(3000, () => {
   console.log("✅ Server running on port 3000");
 });
+
