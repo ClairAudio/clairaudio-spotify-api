@@ -123,6 +123,34 @@ res.json({
   }
 });
 
+// ✅ Route: Get full track info (by ID)
+app.get("/track/:trackId", async (req, res) => {
+  const { trackId } = req.params;
+  const accessToken = await getAccessToken();
+
+  try {
+    const response = await axios.get(
+      `https://api.spotify.com/v1/tracks/${trackId}`,
+      {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      }
+    );
+
+    const t = response.data;
+    res.json({
+      id: t.id,
+      name: t.name,
+      artist_name: t.artists?.[0]?.name || "",
+      artist_id: t.artists?.[0]?.id || "",
+      cover_url: t.album?.images?.[0]?.url || "",
+      popularity: t.popularity || 0
+    });
+  } catch (err) {
+    console.error("❌ Failed to fetch track info:", err.message);
+    res.status(500).json({ error: "Failed to fetch track info" });
+  }
+});
+
 app.listen(3000, () => {
   console.log("✅ Server running on port 3000");
 });
